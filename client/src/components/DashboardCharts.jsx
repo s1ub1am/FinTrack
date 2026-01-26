@@ -26,31 +26,47 @@ const DashboardCharts = ({ monthlyData, pieData }) => {
             </div>
 
             {/* Expense Breakdown */}
-            <div className="card h-96 flex flex-col">
+            <div className="card h-auto min-h-[24rem] flex flex-col">
                 <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white shrink-0">Expense Breakdown</h3>
-                <div className="flex-1 min-h-0 min-w-0">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                            <Pie
-                                data={pieData}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={60}
-                                outerRadius={80}
-                                paddingAngle={5}
-                                dataKey="value"
-                            >
-                                {pieData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip
-                                contentStyle={{ backgroundColor: '#1c1917', border: '1px solid #292524', borderRadius: '12px', color: '#fff' }}
-                                itemStyle={{ color: '#fff' }}
-                            />
-                            <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                        </PieChart>
-                    </ResponsiveContainer>
+                <div className="flex-1 min-h-0 min-w-0 flex flex-col">
+                    <div className="h-64 sticky top-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={pieData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {pieData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: '#1c1917', border: '1px solid #292524', borderRadius: '12px', color: '#fff' }}
+                                    itemStyle={{ color: '#fff' }}
+                                />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+
+                    {/* Custom Legend */}
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-sm max-h-48 overflow-y-auto px-2 custom-scrollbar">
+                        {pieData.map((entry, index) => (
+                            <div key={`legend-${index}`} className="flex items-center gap-2">
+                                <span
+                                    className="w-3 h-3 rounded-full shrink-0"
+                                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                ></span>
+                                <span className="text-gray-600 dark:text-gray-300 truncate" title={entry.name}>
+                                    {entry.name}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>
