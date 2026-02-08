@@ -28,11 +28,11 @@
   /* Glassmorphism */
   /* Glassmorphism */
   .glass {
-    @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-lg;
+    @apply bg-white/60 backdrop-blur-xl border border-white/20 shadow-lg;
   }
 
   .dark .glass {
-    @apply bg-stone-900/70 border-white/10;
+    @apply bg-stone-900/60 border-white/5;
   }
 
   .bg-base {

@@ -59,17 +59,23 @@ router.get('/summary', verifyToken, async (req, res) => {
 
         const categoryData = {};
 
+        const incomeTypes = ['income', 'repayment', 'borrowed'];
+
         transactions.forEach(t => {
             const monthIndex = new Date(t.date).getMonth();
-            if (t.type === 'income') {
+            if (incomeTypes.includes(t.type)) {
                 monthlyData[monthIndex].income += t.amount;
+                monthlyData[monthIndex].income = Math.round(monthlyData[monthIndex].income * 100) / 100;
             } else {
                 monthlyData[monthIndex].expense += t.amount;
+                monthlyData[monthIndex].expense = Math.round(monthlyData[monthIndex].expense * 100) / 100;
+
                 // Category aggregation for expenses
                 if (!categoryData[t.category]) {
                     categoryData[t.category] = 0;
                 }
                 categoryData[t.category] += t.amount;
+                categoryData[t.category] = Math.round(categoryData[t.category] * 100) / 100;
             }
         });
 
@@ -87,13 +93,14 @@ router.get('/summary', verifyToken, async (req, res) => {
 
 // ADD TRANSACTION
 router.post('/', verifyToken, async (req, res) => {
-    const { type, amount, category, description, date } = req.body;
+    const { type, amount, category, description, party, date } = req.body;
     const newTransaction = new Transaction({
         userId: req.user._id,
         type,
         amount,
         category,
         description,
+        party,
         date
     });
 

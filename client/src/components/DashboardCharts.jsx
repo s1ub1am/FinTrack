@@ -3,12 +3,14 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 const COLORS = ['#059669', '#eab308', '#f97316', '#06b6d4', '#8b5cf6'];
 
 const DashboardCharts = ({ monthlyData, pieData }) => {
+    if (!monthlyData || !pieData) return null;
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             {/* Monthly Trends */}
             <div className="card h-96 flex flex-col">
                 <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white shrink-0">Monthly Trends</h3>
-                <div className="flex-1 min-h-0 min-w-0">
+                <div style={{ width: '100%', height: '100%', minHeight: '300px' }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
@@ -28,8 +30,8 @@ const DashboardCharts = ({ monthlyData, pieData }) => {
             {/* Expense Breakdown */}
             <div className="card h-auto min-h-[24rem] flex flex-col">
                 <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white shrink-0">Expense Breakdown</h3>
-                <div className="flex-1 min-h-0 min-w-0 flex flex-col">
-                    <div className="h-64 sticky top-0">
+                <div className="flex-1 flex flex-col">
+                    <div style={{ width: '100%', height: '250px' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie

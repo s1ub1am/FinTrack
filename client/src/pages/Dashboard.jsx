@@ -83,10 +83,14 @@ const Dashboard = () => {
 
     const handleAddTransaction = async (formData) => {
         try {
-            const res = await api.post('/transactions', formData);
-            // Optimistic update or refetch
+            const payload = {
+                ...formData,
+                amount: Number(formData.amount),
+                date: new Date(formData.date)
+            };
+            const res = await api.post('/transactions', payload);
+            // Refresh data
             fetchData();
-            setActiveTab('overview'); // Switch to overview to see impact or stay? User preference. Let's stay.
         } catch (err) {
             console.error(err);
         }
@@ -104,16 +108,40 @@ const Dashboard = () => {
     };
 
     const calculateStats = () => {
+        const round = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
+
         const income = transactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
         const expense = transactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
-        const balance = income - expense;
+        const lent = transactions.filter(t => t.type === 'lent').reduce((acc, t) => acc + t.amount, 0);
+        const repaid = transactions.filter(t => t.type === 'repayment').reduce((acc, t) => acc + t.amount, 0);
+        const borrowed = transactions.filter(t => t.type === 'borrowed').reduce((acc, t) => acc + t.amount, 0);
+        const payback = transactions.filter(t => t.type === 'payback').reduce((acc, t) => acc + t.amount, 0);
+
+        // Balance logic:
+        // + Income
+        // - Expense
+        // - Lent (Money left wallet)
+        // + Repaid (Money entered wallet)
+        // + Borrowed (Money entered wallet)
+        // - Payback (Money left wallet)
+        const balance = income - expense - lent + repaid + borrowed - payback;
+
         // Budget progress
         const budgetProgress = Math.min((expense / budget) * 100, 100);
 
-        return { income, expense, balance, budgetProgress };
+        return {
+            income: round(income),
+            expense: round(expense),
+            balance: round(balance),
+            budgetProgress: round(budgetProgress),
+            lent: round(lent),
+            repaid: round(repaid),
+            borrowed: round(borrowed),
+            payback: round(payback)
+        };
     };
 
-    const { income, expense, balance, budgetProgress } = calculateStats();
+    const { income, expense, balance, budgetProgress, lent, repaid, borrowed, payback } = calculateStats();
 
     if (loading && transactions.length === 0) return <div className="text-center mt-10 text-gray-400">Loading...</div>;
 
@@ -202,25 +230,131 @@ const Dashboard = () => {
                 >
                     Transactions
                 </button>
+                <button
+                    onClick={() => setActiveTab('debts')}
+                    className={`px-4 py-2 font-semibold transition-colors ${activeTab === 'debts' ? 'text-primary border-b-2 border-primary' : 'text-gray-400 hover:text-gray-200'}`}
+                >
+                    Debts
+                </button>
             </div>
 
             <SummaryCards income={income} expense={expense} balance={balance} />
 
-            {activeTab === 'overview' ? (
-                <div>
-                    <DashboardCharts monthlyData={chartData.monthlyData} pieData={chartData.pieData} />
-                    {/* Optional: Show recent transactions in overview too? Maybe just a few. */}
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-1">
-                        <TransactionForm onAddTransaction={handleAddTransaction} />
+            <div>
+                {activeTab === 'overview' && (
+                    <>
+                        <DashboardCharts monthlyData={chartData.monthlyData} pieData={chartData.pieData} />
+                        {/* Optional: Show recent transactions in overview too? Maybe just a few. */}
+                    </>
+                )}
+
+                {activeTab === 'transactions' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-1">
+                            <TransactionForm onAddTransaction={handleAddTransaction} />
+                        </div>
+                        <div className="lg:col-span-2">
+                            <TransactionList transactions={transactions} onDelete={handleDeleteTransaction} />
+                        </div>
                     </div>
-                    <div className="lg:col-span-2">
-                        <TransactionList transactions={transactions} onDelete={handleDeleteTransaction} />
+                )}
+
+                {activeTab === 'debts' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-1 space-y-6">
+                            {/* Debt Summary Card - Net Worth */}
+                            <div className="card bg-gradient-to-br from-indigo-900 to-slate-900 text-white">
+                                <h3 className="text-lg font-medium text-indigo-100 mb-2">Net Outstanding</h3>
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-emerald-300">Total Owed to You:</span>
+                                        <span>₹{(lent - repaid).toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-red-300">Total You Owe:</span>
+                                        <span>₹{(borrowed - payback).toLocaleString()}</span>
+                                    </div>
+                                    <div className="h-px bg-white/20 my-2"></div>
+                                    <div className="flex justify-between items-center font-bold text-lg">
+                                        <span>Net:</span>
+                                        <span className={(lent - repaid - (borrowed - payback)) >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                                            ₹{((lent - repaid) - (borrowed - payback)).toLocaleString()}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="lg:col-span-2">
+                            <div className="card">
+                                <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Active Debts Logic</h3>
+                                <div className="space-y-3">
+                                    {(() => {
+                                        // Group by party
+                                        const partyCalculations = {};
+                                        transactions.forEach(t => {
+                                            const party = t.party;
+                                            if (!party) return;
+
+                                            if (!partyCalculations[party]) partyCalculations[party] = 0;
+                                            // Positive means THEY owe ME
+                                            // Negative means I owe THEM
+
+                                            if (t.type === 'lent') partyCalculations[party] += t.amount;
+                                            if (t.type === 'repayment') partyCalculations[party] -= t.amount;
+                                            if (t.type === 'borrowed') partyCalculations[party] -= t.amount;
+                                            if (t.type === 'payback') partyCalculations[party] += t.amount;
+                                        });
+
+                                        const parties = Object.entries(partyCalculations).filter(([_, amount]) => Math.abs(amount) > 0);
+
+                                        if (parties.length === 0) return <p className="text-gray-500 text-center py-4">No active debts.</p>;
+
+                                        return parties.map(([party, amount]) => (
+                                            <div key={party} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-stone-800 rounded-lg">
+                                                <div>
+                                                    <p className="font-semibold text-gray-800 dark:text-white">{party}</p>
+                                                    <p className="text-xs text-gray-500">{amount > 0 ? 'Owes you' : 'You owe'}</p>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`font-bold ${amount < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                                        ₹{Math.abs(amount).toLocaleString()}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => {
+                                                            const settleAmountStr = window.prompt(`Settle amount for ${party}? (Max: ${Math.abs(amount)})`, Math.abs(amount));
+                                                            if (!settleAmountStr) return;
+
+                                                            const settleAmount = parseFloat(settleAmountStr);
+                                                            if (isNaN(settleAmount) || settleAmount <= 0) {
+                                                                alert('Invalid amount entered');
+                                                                return;
+                                                            }
+
+                                                            const type = amount > 0 ? 'repayment' : 'payback';
+                                                            const payload = {
+                                                                type,
+                                                                amount: settleAmount,
+                                                                category: 'Debt Settlement',
+                                                                description: 'Settled via Dashboard',
+                                                                party,
+                                                                date: new Date().toISOString().split('T')[0]
+                                                            };
+                                                            api.post('/transactions', payload).then(() => fetchData()).catch(console.error);
+                                                        }}
+                                                        className={`px-3 py-1 rounded-lg text-xs font-semibold text-white shadow-sm transition-transform active:scale-95 ${amount > 0 ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-indigo-500 hover:bg-indigo-600'}`}
+                                                    >
+                                                        {amount > 0 ? 'Collect' : 'Pay'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ));
+                                    })()}
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 };

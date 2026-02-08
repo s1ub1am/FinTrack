@@ -28,7 +28,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-base font-sans selection:bg-emerald-500/30">
+    <div className="min-h-screen bg-base font-sans selection:bg-emerald-500/30 bg-[linear-gradient(to_bottom_right,var(--color-bg-light),#e6e6e6)] dark:bg-[linear-gradient(to_bottom_right,var(--color-bg-dark),#000000)]">
       <Navbar user={user} onLogout={handleLogout} />
       <div className="container mx-auto px-4 pt-28 pb-10 max-w-5xl">
         <Routes>
